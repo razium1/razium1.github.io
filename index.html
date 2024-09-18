@@ -147,6 +147,7 @@
     <a href="#music">Jazz Music</a>
     <a href="#bears">Bears Updates</a>
     <a href="#contact">Contact</a>
+    <a href="FBMUSE.html" target="_blank">FBMUSE</a>
 </nav>
 
 <section id="about">
@@ -215,14 +216,21 @@
 
 <script>
 // Smooth scroll for all anchor links
-document.querySelectorAll('nav a').forEach(anchor => {
+// Smooth scroll only for internal links (anchors with href starting with '#')
+document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function(e) {
         e.preventDefault();
-        document.querySelector(this.getAttribute('href')).scrollIntoView({
-            behavior: 'smooth'
-        });
+        const targetSection = document.querySelector(this.getAttribute('href'));
+        
+        // Only scroll if the target exists
+        if (targetSection) {
+            targetSection.scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
     });
 });
+
 
 // Mock Bears data to simulate a real API call
 function loadBearsUpdates() {
