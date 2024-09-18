@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Football GM Query</title>
+    <style>
+        /* Global Styles - Apple-Inspired */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-top: 40px;
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: #111;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 30px;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            display: block;
+            color: #777;
+        }
+
+        input[type="file"],
+        input[type="text"],
+        button {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-top: 8px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        input[type="file"],
+        input[type="text"] {
+            background-color: #f7f7f7;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 8px rgba(0, 122, 255, 0.2);
+        }
+
+        button {
+            background-color: #007aff;
+            color: white;
+            cursor: pointer;
+            border: none;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #005bb5;
+        }
+
+        button:disabled {
+            background-color: #ddd;
+            cursor: not-allowed;
+        }
+
+        .results-container {
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background-color: #f1f1f1;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            text-align: left;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        #playerFaceCanvas {
+            display: block;
+            margin: 15px auto;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .container {
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Football GM Query</h1>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <!-- File Upload -->
+        <div class="form-group">
+            <label for="uploadFile">Upload Football-GM League File (JSON):</label>
+            <input type="file" id="uploadFile">
+        </div>
+
+        <!-- Query Input -->
+        <div class="form-group">
+            <label for="queryInput">Ask a Question (e.g., "How many touchdowns did Casey Weber score?"):</label>
+            <input type="text" id="queryInput">
+        </div>
+
+        <!-- Submit Button -->
+        <div class="form-group">
+            <button id="queryBtn">Submit Query</button>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsContainer" class="results-container"></div>
+    </div>
+
+    <!-- Canvas for Player Face Rendering -->
+    <canvas id="playerFaceCanvas" width="150" height="150" style="display: none;"></canvas>
+
+    <script>
+        let leagueData = null;
+
+        // Handle file upload and parse JSON
+        document.getElementById('uploadFile').addEventListener('change', () => {
+            const fileInput = document.getElementById('uploadFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please upload a JSON file.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const text = e.target.result;
+                try {
+                    leagueData = JSON.parse(text);
+                    console.log('League data successfully uploaded:', leagueData);
+                    alert('File uploaded successfully.');
+                } catch (error) {
+                    console.error('Error parsing the JSON file:', error);
+                    alert('Error parsing the JSON file.');
+                }
+            };
+
+            reader.readAsText(file);
+        });
+
+        // Handle user query
+        document.getElementById('queryBtn').addEventListener('click', () => {
+            const query = document.getElementById('queryInput').value.toLowerCase();
+            if (!leagueData) {
+                alert('Please upload a league file first.');
+                return;
+            }
+
+            const players = leagueData.players || [];
+            const teams = leagueData.teams || [];
+            let result = '';
+            let matchedPlayer = findPlayerInQuery(query, players);
+
+            if (matchedPlayer) {
+                result = handlePlayerQuery(query, matchedPlayer, teams);
+                renderPlayerFace(matchedPlayer.face);
+            } else {
+                result = 'No matching player found. Try a different query.';
+            }
+
+            // Display results
+            document.getElementById('resultsContainer').innerHTML = `<div class="result-card">${result}</div>`;
+        });
+
+        // Find player by name in query
+        function findPlayerInQuery(query, players) {
+            return players.find(player => {
+                const fullName = `${player.firstName.toLowerCase()} ${player.lastName.toLowerCase()}`;
+                return query.includes(player.firstName.toLowerCase()) && query.includes(player.lastName.toLowerCase());
+            });
+        }
+
+        // Handle player query and return stats
+        function handlePlayerQuery(query, player, teams) {
+            const team = teams.find(t => t.tid === player.tid)?.name || "Unknown Team";
+            const position = player.pos || "Unknown";
+            const number = player.jerseyNumber || "Unknown";
+            const yearsPlayed = player.stats[0].yearsWithTeam || "Unknown";
+
+            let response = `Player: ${player.firstName} ${player.lastName} <br>
+                            Position: ${position}, Jersey Number: #${number}, Team: ${team}, Years Played: ${yearsPlayed}`;
+
+            // Example query handling for touchdowns
+            if (query.includes("touchdown")) {
+                const rushingTDs = getPlayerStat(player, 'rusTD');
+                const passingTDs = getPlayerStat(player, 'pssTD');
+                const totalTDs = rushingTDs + passingTDs;
+                response += `<br> Total Touchdowns: ${totalTDs}`;
+            }
+
+            // Example for yards
+            if (query.includes("yards")) {
+                const rushingYards = getPlayerStat(player, 'rusYds');
+                const receivingYards = getPlayerStat(player, 'recYds');
+                const passingYards = getPlayerStat(player, 'pssYds');
+                response += `<br> Rushing Yards: ${rushingYards}, Receiving Yards: ${receivingYards}, Passing Yards: ${passingYards}`;
+            }
+
+            return response;
+        }
+
+        // Fetch player stat from the player object
+        function getPlayerStat(player, statName) {
+            if (player.stats && player.stats.length > 0 && player.stats[0][statName] !== undefined) {
+                return player.stats[0][statName];
+            }
+            return 0; // Return 0 if stat is not available
+        }
+
+        // Render player face manually using Canvas
+        function renderPlayerFace(faceData) {
+            if (!faceData) return;
+
+            const canvas = document.getElementById('playerFaceCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.style.display = 'block'; // Show canvas
+
+            // Clear previous drawing
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw basic head (using color)
+            ctx.fillStyle = faceData.body.color || "#f1c27d"; // Default skin color
+            ctx.beginPath();
+            ctx.arc(75, 75, 70, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Example face details (eyes, nose, etc.)
+            ctx.fillStyle = "#000"; // Black eyes
+            ctx.beginPath();
+            ctx.arc(55, 65, 5, 0, 2 * Math.PI); // Left eye
+            ctx.arc(95, 65, 5, 0, 2 * Math.PI); // Right eye
+            ctx.fill();
+
+            // Draw mouth
+            ctx.strokeStyle = "#000";
+            ctx.beginPath();
+            ctx.moveTo(55, 100);
+            ctx.quadraticCurveTo(75, 110, 95, 100); // Smiling mouth
+            ctx.stroke();
+        }
+    </script>
+
+</body>
+</html>
